@@ -95,7 +95,7 @@ class GetInfo(object):
             self.new_conn.close()
     def get_info(self):
         sql='''
-select link from togetter group by link limit 100000;
+select link from togetter group by link;
         '''
         self.cursor.execute(sql)
         for cnt,r in enumerate(self.cursor.fetchall()):
@@ -116,6 +116,8 @@ select * from togetter where link=? order by fetched_at desc
             if v:
                 self.new_cursor.executemany(sql,v)
             self.new_conn.commit()
+            if cnt % 100000 == 0:
+                logging.info("cnt={} sp={}".format(cnt,sp))
 def split_info():
     conn,cursor = init_db('togetter.sqlite')
     new_conn,new_cursor = init_db('togetter2.sqlite')
