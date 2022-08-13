@@ -110,6 +110,20 @@ def ins_sql():
     return '''
 insert into togetter (guid,link,title,pub_date,description,type,fetched_at,view,fav,author) values (?,?,?,?,?,?,?,?,?,?)
     '''
+def exists_key(type,dt,cursor):
+    sql='''
+select count(1) from togetter where type=? and fetched_at=?
+    '''
+    cursor.execute(sql,(type,dt.strftime('%Y-%m-%d %H:%M:%S')))
+    a=cursor.fetchone()
+    result=False
+    if a:
+        cnt=a[0]
+        if cnt>0:
+            result=True
+    logging.debug("result={} cnt={} tp={} dt={}".format(result,a,type,dt))
+    return result
+
 def ins_info():
     db = anydbm.open('togetter.dbm')
     conn,cursor = init_db('togetter.sqlite')
@@ -121,7 +135,12 @@ def ins_info():
     for k in db.keys():
         tp,dt=k.split('_')
         dt=conv_dt(dt)
-        body=zlib.decompress(db[k])
+        if exists_key(tp,dt,cursor):continue
+        try:
+            body=zlib.decompress(db[k])
+        except zlib.error as err:
+            logging.error("k={} err={}".format(k,err))
+            continue
         try:
             root=ET.fromstring(body)
             i=Item()
@@ -129,7 +148,7 @@ def ins_info():
             cursor.executemany(ins_s,dts)
             conn.commit()
             cnt+=1
-            if cnt % 5000 == 0:
+            if cnt % 10000 == 0:
                 logging.info("cnt={} k={}".format(cnt,k))
         except xml.etree.ElementTree.ParseError as err:
             pass
